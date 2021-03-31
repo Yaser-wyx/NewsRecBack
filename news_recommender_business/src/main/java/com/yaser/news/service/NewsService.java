@@ -5,12 +5,18 @@ import com.yaser.news.controller.globalHandler.APIException;
 import com.yaser.news.constant.ResultCode;
 import com.yaser.news.dataEntity.News;
 import com.yaser.news.dataEntity.NewsChannel;
+import com.yaser.news.dataEntity.RecUser;
+import com.yaser.news.dataEntity.UserNewsScore;
 import com.yaser.news.repository.NewsChannelRepository;
 import com.yaser.news.repository.NewsRepository;
+import com.yaser.news.repository.UserNewsScoreRepository;
 import com.yaser.news.service.dataWrap.NewsDetails;
 import com.yaser.news.service.dataWrap.NewsSimple;
 import com.yaser.news.service.dataWrap.PageData;
+import com.yaser.news.service.dataWrap.UserNewsScoreWrap;
+import com.yaser.news.utils.ServiceContextHolder;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -18,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -30,24 +37,17 @@ public class NewsService {
     private final NewsRepository newsRepository;
     private final NewsChannelRepository newsChannelRepository;
     private final static int PAGE_SIZE = 10;
-    private final MongoOperations mongoOps = new MongoTemplate(MongoClients.create(), "news_recommender");
+    private final MongoOperations newsDB = new MongoTemplate(MongoClients.create(), "news_recommender");
+    private final UserHistoryService userHistoryService;
+    private final UserNewsScoreRepository userNewsRepository;
 
     @Autowired
-    public NewsService(NewsRepository newsRepository, NewsChannelRepository newsChannelRepository) {
+    public NewsService(NewsRepository newsRepository, NewsChannelRepository newsChannelRepository, UserHistoryService userHistoryService, UserNewsScoreRepository userNewsRepository) {
         this.newsRepository = newsRepository;
         this.newsChannelRepository = newsChannelRepository;
+        this.userHistoryService = userHistoryService;
+        this.userNewsRepository = userNewsRepository;
     }
-
-    public Map<String, Object> getAllNewsByPageNums(int pageNum) {
-        int maxPageNum = (int) Math.ceil((double) this.newsRepository.count() / PAGE_SIZE);
-        if (pageNum > maxPageNum) pageNum = maxPageNum;
-        if (pageNum < 1) pageNum = 1;
-        var result = new HashMap<String, Object>();
-        Page<News> newsPage = this.newsRepository.findAll(PageRequest.of(pageNum - 1, PAGE_SIZE));
-        this.iteratorPage(newsPage, pageNum, result);
-        return result;
-    }
-
 
     //读取page所有信息，并提取出数据
     private void iteratorPage(Page<News> newsPage, int pageNum, HashMap<String, Object> result) {
@@ -66,16 +66,27 @@ public class NewsService {
         if (!this.newsRepository.existsById(docId)) {
             throw new APIException(ResultCode.NEW_NOT_EXIST);
         }
-        Optional<News> news = this.newsRepository.findById(docId);
+        Optional<News> newsRes = this.newsRepository.findById(docId);
+        if (newsRes.isEmpty()) {
+            throw new APIException(ResultCode.NEW_NOT_EXIST);
+        }
+        News news = newsRes.get();
+        news.setViewCount(news.getViewCount() + 1);//浏览记录加一
+        RecUser recUser = ServiceContextHolder.getContext().getRecUser();//直接从线程中读取信息
+        if (recUser != null) {
+            //用户登录了
+            userHistoryService.addUserHistory(recUser.getUid(), news.getDocId());//添加用户浏览记录
+        }
+        this.newsRepository.save(news);
         NewsDetails newsDetails = new NewsDetails();
         BeanUtils.copyProperties(news, newsDetails);
         return newsDetails;
     }
 
+
     public List<NewsChannel> getAllChannels() {
         return this.newsChannelRepository.findAll();
     }
-
 
     public Map<String, Object> getNewsListByChannelName(String channelName, int pageNum) {
         if (!channelName.equals("推荐") && !this.newsRepository.existsByChannelName(channelName))
@@ -99,5 +110,25 @@ public class NewsService {
         return result;
     }
 
+    public List<NewsSimple> getSimilarNews(String newsId) {
+        return this.getRandomNews(5);
+    }
 
+    public List<NewsSimple> getRandomNews(int num) {
+        Aggregation aggregation = Aggregation.newAggregation(Aggregation.sample(num));
+
+        val aggregationResults = newsDB.aggregate(aggregation, "news", News.class);
+        List<NewsSimple> newsList = new ArrayList<>();
+        aggregationResults.forEach(news -> {
+            NewsSimple newsSimple = new NewsSimple();
+            BeanUtils.copyProperties(news, newsSimple);
+            newsList.add(newsSimple);
+        });
+        return newsList;
+    }
+
+   /* private int calculateNewsHotValue(News news) {
+        //新闻热度计算公式：view
+
+    }*/
 }

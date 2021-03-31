@@ -17,7 +17,8 @@ public enum ResultCode {
     CHANNEL_NOT_EXIST(1010, "当前请求的channel不存在！"),
     NEW_NOT_EXIST(1011, "新闻不存在！"),
     LABELS_TOO_MUCH(1013, "用户标签不应超过8个！"),
-    LABEL_TOO_LONG(1014, "单个用户标签长度不可超过4个字符！");
+    LABEL_TOO_LONG(1014, "单个用户标签长度不可超过4个字符！"),
+    USER_NEWS_SCORE_EXIST(1015, "用户已对该新闻评分过了！");
 
     @Getter
     private final int code;

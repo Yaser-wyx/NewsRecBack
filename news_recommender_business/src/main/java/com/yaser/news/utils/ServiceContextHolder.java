@@ -7,6 +7,10 @@ public class ServiceContextHolder {
         return threadLocal.get();
     }
 
+    public static boolean hasLogin() {
+        return threadLocal.get() != null;
+    }
+
     public static void setContext(ServiceContext sc) {
         if (threadLocal.get() != null) {
             threadLocal.remove();

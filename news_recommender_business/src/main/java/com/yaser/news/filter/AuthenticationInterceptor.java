@@ -73,6 +73,13 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
         } catch (SignatureException e) {
             log.info("------------------------SignatureException" + e.getMessage());
             throw new APIException(ResultCode.ILLEGAL_TOKEN);
+        } catch (APIException e) {
+            if (useToken.must()) {
+                log.info("------------------------APIException" + e.getMessage());
+                throw new APIException(ResultCode.TOKEN_NOT_FOUND_UID);
+            } else {
+                return true;
+            }
         }
         return true;
     }
