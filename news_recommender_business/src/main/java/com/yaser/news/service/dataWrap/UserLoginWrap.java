@@ -16,4 +16,5 @@ public class UserLoginWrap {
     private int gender;
     private List<String> labels;
     private Roles role;
+    private int userViewedNum;
 }

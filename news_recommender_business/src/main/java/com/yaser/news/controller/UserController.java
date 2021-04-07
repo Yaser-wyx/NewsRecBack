@@ -5,6 +5,7 @@ import com.yaser.news.service.UserService;
 import com.yaser.news.service.dataWrap.UserInfoWrap;
 import com.yaser.news.service.dataWrap.UserLoginWrap;
 import com.yaser.news.utils.UseToken;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 
 @CrossOrigin(allowCredentials = "true", origins = "http://localhost:3000")
+@Slf4j
 
 @RequestMapping(value = "/v1/user")
 public class UserController {
@@ -24,8 +26,10 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public UserLoginWrap login(@RequestParam String email, @RequestParam String password) {
-        return userService.login(email, password);
+    public UserLoginWrap login(@RequestParam String email, @RequestParam String password,
+                               @RequestParam(required = false) boolean isAdmin) {
+        log.info(String.valueOf("isAdmin:" + isAdmin));
+        return userService.login(email, password, isAdmin);
     }
 
     @PostMapping("/register")

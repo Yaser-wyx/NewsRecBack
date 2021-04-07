@@ -8,4 +8,6 @@ public interface UserHistoryRepository extends MongoRepository<UserHistory, Long
     void deleteAllByUidAndNewsId(long uid, String newsId);
 
     boolean existsByUidAndNewsId(long uid, String newsId);
+
+    int countByUid(long uid);
 }

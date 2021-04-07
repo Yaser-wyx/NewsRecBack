@@ -39,6 +39,12 @@ public class NewsController {
         return userNewsScoreService.getUserNewsScore(newsId);
     }
 
+    @GetMapping("/cleanData")
+    public Map<String, Integer> cleanData() {
+        return newsService.cleanData();
+    }
+
+
     @GetMapping("")
     @UseToken(must = false)
     public NewsDetails getNewsById(@RequestParam String newsId) {
@@ -57,7 +63,7 @@ public class NewsController {
     }
 
     @GetMapping("/getHotNews")
-    public List<NewsSimple> getHotNews() {
+    public List<NewsSimple> getHotNewsByChannel(@RequestParam String channelName) {
         return this.newsService.getRandomNews(8);
     }
 

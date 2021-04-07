@@ -1,5 +1,6 @@
 package com.yaser.news.filter;
 
+import com.yaser.news.constant.Roles;
 import com.yaser.news.controller.globalHandler.APIException;
 import com.yaser.news.constant.ResultCode;
 import com.yaser.news.dataEntity.RecUser;
@@ -25,28 +26,53 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Object object) {
         if (object instanceof HandlerMethod) {
-            //检查是否有passToken注释，有则跳过认证
             HandlerMethod handlerMethod = (HandlerMethod) object;
             Method method = handlerMethod.getMethod();
             Class<?> declaringClass = method.getDeclaringClass();
-            //先判断当前method是否被passToken注解
-            if (method.isAnnotationPresent(PassToken.class)) {
-                return true;
-            }
-            UseToken useToken = null;
-            if (method.isAnnotationPresent(UseToken.class)) {
-                useToken = method.getAnnotation(UseToken.class);
-            } else if (declaringClass.isAnnotationPresent(UseToken.class)) {
-                useToken = declaringClass.getAnnotation(UseToken.class);
-            }
-            //判断当前method或class是否被useToken注解了
-            if (useToken != null) {
-                return authorizeToken(httpServletRequest, useToken);
+            if (method.isAnnotationPresent(Admin.class) || declaringClass.isAnnotationPresent(UseToken.class)) {
+                //如果有admin注解，则必须进行认证
+                return authorizeAdminToken(httpServletRequest);
+            } else {
+                UseToken useToken = null;
+                if (method.isAnnotationPresent(UseToken.class)) {
+                    useToken = method.getAnnotation(UseToken.class);
+                } else if (declaringClass.isAnnotationPresent(UseToken.class)) {
+                    useToken = declaringClass.getAnnotation(UseToken.class);
+                }
+                //判断当前method或class是否被useToken注解了
+                if (useToken != null) {
+                    return authorizeToken(httpServletRequest, useToken);
+                }
             }
         }
         return true;
     }
 
+    private boolean authorizeAdminToken(HttpServletRequest request) {
+        try {
+            long userId = JWTUtils.ParseToken(request);//解析请求中的token信息
+            log.info("userId:" + userId);
+            if (userId == 0) {
+                throw new APIException(ResultCode.TOKEN_NOT_FOUND_UID);
+            }
+            if (ServiceContextHolder.getContext() == null) {
+                //如果上下文不存在用户信息，则加载进去
+                RecUser recUser = this.userService.loadUserByUserId(userId);//通过ID加载用户信息
+                if (recUser.getRole() != Roles.ADMIN) {
+                    throw new APIException(ResultCode.PERMISSION_DENY);
+                }
+                ServiceContext serviceContext = new ServiceContext(recUser);
+                ServiceContextHolder.setContext(serviceContext);//将加载的用户信息写入到SecurityContext中
+            }
+        } catch (ExpiredJwtException e) {
+            log.info("------------------------ExpiredJwtException" + e.getMessage());
+            throw new APIException(ResultCode.TOKEN_EXPIRED);
+        } catch (SignatureException e) {
+            log.info("------------------------SignatureException" + e.getMessage());
+            throw new APIException(ResultCode.ILLEGAL_TOKEN);
+        }
+        return true;
+    }
 
     private boolean authorizeToken(HttpServletRequest request, UseToken useToken) {
         // 执行认证
@@ -61,10 +87,11 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
                     return true;
                 }
             }
-            if (ServiceContextHolder.getContext() == null) {
+            ServiceContext serviceContext = ServiceContextHolder.getContext();
+            if (serviceContext == null || serviceContext.getRecUser().getUid() != userId) {
                 //如果上下文不存在用户信息，则加载进去
                 RecUser recUser = this.userService.loadUserByUserId(userId);//通过ID加载用户信息
-                ServiceContext serviceContext = new ServiceContext(recUser);
+                serviceContext = new ServiceContext(recUser);
                 ServiceContextHolder.setContext(serviceContext);//将加载的用户信息写入到SecurityContext中
             }
         } catch (ExpiredJwtException e) {

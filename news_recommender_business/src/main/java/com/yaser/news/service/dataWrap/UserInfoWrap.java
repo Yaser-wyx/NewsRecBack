@@ -15,4 +15,6 @@ public class UserInfoWrap {
     private int gender;
     private List<String> labels;
     private Roles role;
+    private int userViewedNum;
+
 }

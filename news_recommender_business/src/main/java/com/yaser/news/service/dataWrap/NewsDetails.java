@@ -17,4 +17,5 @@ public class NewsDetails {
     private String author;
     private double newsScore;
     private double userScore;
+    private int hotValue;
 }

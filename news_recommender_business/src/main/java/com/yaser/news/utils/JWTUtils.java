@@ -78,6 +78,7 @@ public class JWTUtils {
         String token = request.getHeader(HEADER_STRING);//读取请求头部
         if (token == null) throw new APIException(ResultCode.TOKEN_NOT_FOUND);
         if (token.startsWith(TOKEN_PREFIX)) {
+            log.info(token);
             token = token.replace(TOKEN_PREFIX, "");//去掉前缀
             Claims claims = Jwts.parser().setSigningKey(KEY).parseClaimsJws(token).getBody();//读取token信息
             var uid = claims.get("uid");

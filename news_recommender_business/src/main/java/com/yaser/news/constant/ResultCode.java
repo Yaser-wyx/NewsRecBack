@@ -5,7 +5,7 @@ import lombok.Getter;
 public enum ResultCode {
     SUCCESS(200, "成功!"),
     ERROR(500, "服务器内部错误!"),
-
+    PERMISSION_DENY(1000, "用户权限不足！"),
     USER_PASSWORD_ERROR(1002, "用户密码错误！"),
     USER_NOT_EXIST_ERROR(1003, "用户不存在，请先注册！"),
     TOKEN_NOT_FOUND_UID(1004, "Token中未找到用户id！"),
